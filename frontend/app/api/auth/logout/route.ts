@@ -1,13 +1,13 @@
 import {
   clearSession,
   forwardAuth,
-  isSameOrigin,
+  hasValidCsrfProof,
   readRefreshToken,
 } from "@/lib/auth-bff";
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isSameOrigin(request)) {
-    return Response.json({ detail: "Cross-origin request rejected." }, { status: 403 });
+  if (!(await hasValidCsrfProof(request))) {
+    return Response.json({ detail: "Invalid CSRF proof." }, { status: 403 });
   }
   const refreshToken = await readRefreshToken();
   let upstream: Response | undefined;

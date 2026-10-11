@@ -1,8 +1,8 @@
-import { forwardAuth, isSameOrigin, writeSession } from "@/lib/auth-bff";
+import { forwardAuth, hasValidCsrfProof, writeSession } from "@/lib/auth-bff";
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isSameOrigin(request)) {
-    return Response.json({ detail: "Cross-origin request rejected." }, { status: 403 });
+  if (!(await hasValidCsrfProof(request))) {
+    return Response.json({ detail: "Invalid CSRF proof." }, { status: 403 });
   }
   let payload: unknown;
   try {

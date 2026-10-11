@@ -1,6 +1,6 @@
 # ADR 0003: Authentication and Session Tokens
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-11
 
 ## Context
@@ -30,6 +30,14 @@ session without exposing long-lived credentials to JavaScript.
   authorize admin operations against current database state.
 - Keep PostgreSQL authoritative; do not introduce Redis as an auth/session
   source of truth.
+- Use 10-minute access tokens, 7-day refresh idle expiry, and 30-day refresh
+  family absolute expiry. Published problem browsing stays public; new
+  submissions and personal submission history require authentication. Existing
+  anonymous submission rows remain valid. Email verification is not part of
+  this increment; `email_verified_at` remains unset.
+- Protect unsafe BFF requests with same-origin validation and a
+  double-submit CSRF proof. Keep administrator provisioning an operator-only
+  action; no public role-change endpoint exists.
 
 ## Consequences
 
@@ -43,9 +51,11 @@ session without exposing long-lived credentials to JavaScript.
 - API routes still need independent authentication, resource ownership, and
   role checks; hiding UI controls is not authorization.
 - Signing keys need managed storage, rotation, and verification-key overlap.
-- This ADR remains proposed until product decisions about email verification,
-  auth provider, anonymous submissions, cookie domains, token lifetimes, and
-  admin bootstrap are approved.
+- Password authentication is the initial provider; SSO, email verification,
+  and account recovery remain out of scope. Administrator bootstrap must be
+  performed through an approved operator procedure. Integration deployment
+  and browser end-to-end verification remain release gates, not unresolved
+  architectural decisions.
 
 ## Alternatives considered
 

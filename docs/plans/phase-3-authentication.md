@@ -2,10 +2,24 @@
 
 ## Status and scope
 
-This is a planning document only. No Phase 3 application code has been
-implemented. The recommendations below build on the merged Phase 2 architecture
-and should be reviewed before implementation. The related proposed decision is
-recorded in [ADR 0003](../adr/0003-authentication-and-session-tokens.md).
+The plan was approved before implementation. Phase 3 code is being implemented
+on `feature/phase-3-authentication`; this document records the approved target
+and remains the acceptance checklist. See [ADR 0003](../adr/0003-authentication-and-session-tokens.md)
+for the accepted architectural decisions and the Phase 3 release note for
+implementation and verification status.
+
+### Implementation progress
+
+- Added migrations `0004_authentication` and `0005_refresh_family_expiry`.
+- Implemented password hashing, RS256 access tokens, opaque rotating refresh
+  sessions, BFF-gated auth endpoints, source/account rate limits, and
+  user/admin dependencies.
+- Added submission ownership checks and the same-origin Next.js auth BFF, CSRF
+  proof, account forms, and session-aware navigation.
+- Focused unit tests and frontend lint/typecheck/build have passed during
+  implementation. PostgreSQL/Redis lifecycle integration and Compose-backed
+  browser checks still require Docker and a dedicated test database; do not
+  treat this plan as release-complete until those checks pass.
 
 ### Goals
 
@@ -206,15 +220,15 @@ boundary if tokens are returned in upstream response bodies.
 
 | Endpoint | Auth | Contract |
 |---|---|---|
-| `POST /auth/register` | Public | `{email, display_name, password}` → `201` sanitized user/session response; always assigns `user` role. Enforce validation, duplicate-email behavior, and rate limits. |
-| `POST /auth/login` | Public | `{email, password}` → `200` sanitized user plus short-lived access credential to the BFF; establishes refresh session/cookie. Generic invalid-credential response. |
-| `POST /auth/refresh` | Refresh cookie | Rotates refresh session and returns a new access credential to the BFF; reuse/invalid/expired token returns `401` and clears cookies. |
-| `POST /auth/logout` | Refresh cookie and CSRF proof | Revokes current refresh session, clears auth cookies, returns `204`; idempotent where practical. |
-| `POST /auth/logout-all` | Authenticated + CSRF proof | Revokes all active refresh sessions for current user; `204`. |
+| `POST /auth/register` | BFF shared-secret header | `{email, display_name, password}` → `201` sanitized user/session response; always assigns `user` role. Enforce validation, duplicate-email behavior, and rate limits. |
+| `POST /auth/login` | BFF shared-secret header | `{email, password}` → `200` sanitized user plus short-lived access credential to the BFF; establishes refresh session/cookie. Generic invalid-credential response. |
+| `POST /auth/refresh` | BFF shared-secret header | Rotates refresh session and returns a new access credential to the BFF; reuse/invalid/expired token returns `401` and clears cookies. |
+| `POST /auth/logout` | BFF shared-secret header | Revokes current refresh session, clears auth cookies, returns `204`; idempotent where practical. |
+| `POST /auth/logout-all` | BFF shared-secret header + authenticated | Revokes all active refresh sessions for current user; `204`. |
 | `GET /auth/me` | Access token | Returns `{id, email, display_name, role}` for the active principal. |
 | `GET /submissions` | Authenticated | Return only current user's submissions; admin behavior should be explicit and not inferred from a query parameter. |
 | `GET /submissions/{id}` | Authenticated | Return only owner's submission, or an explicit admin-authorized view; return `404` for non-owned rows if avoiding existence disclosure is desired. |
-| Admin routes (future in Phase 3 scope) | `require_admin` | Each operation documents its request/response and audit behavior; no generic role mutation endpoint for clients. |
+| `GET /admin/users` | `require_admin` | Returns at most 100 users; ordinary users receive `403`. No generic role mutation endpoint exists. |
 
 Auth errors should use a consistent shape, for example
 `{"detail": "Invalid email or password"}` without revealing which credential

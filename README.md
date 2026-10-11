@@ -25,6 +25,11 @@ volume. On Linux, set `DOCKER_GID` in `.env` to the group ID owning
 only on a trusted development machine. `/health/live` checks the process and
 `/health/ready` checks PostgreSQL and Redis.
 
+Authentication is disabled until runtime signing keys and a BFF shared secret
+are configured. Follow the [local authentication setup](docs/runbooks/local-development.md#authentication-setup)
+before using registration or login. The browser uses the Next.js BFF; it does
+not receive API access or refresh tokens.
+
 For local checks without Docker:
 
 ```bash
@@ -84,6 +89,6 @@ memory, CPU, process-count, and output limits. See `docs/architecture/` and
 
 Phase 0 establishes the repository and developer environment. Phase 1 builds
 the problem catalog, submission lifecycle, persistence, queue handoff, worker,
-seed data, and starter UI. Phase 2 adds isolated Python judging. Authentication,
-observability, Azure resources, and production deployment assets follow in
-their respective phases.
+seed data, and starter UI. Phase 2 adds isolated Python judging. Phase 3 adds
+authentication and authorization. Observability, Azure resources, and
+production deployment assets follow in their respective phases.

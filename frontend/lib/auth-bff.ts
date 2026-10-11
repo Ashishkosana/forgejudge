@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 
 const apiBase = (process.env.API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 const accessCookie = "forgejudge_access";
 const refreshCookie = "forgejudge_refresh";
+const csrfCookie = "forgejudge_csrf";
 
 export interface AuthUser {
   id: string;
@@ -21,6 +23,31 @@ interface AuthTokenResponse {
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   return origin !== null && origin === new URL(request.url).origin;
+}
+
+export async function hasValidCsrfProof(request: Request): Promise<boolean> {
+  if (!isSameOrigin(request)) return false;
+  const cookieToken = (await cookies()).get(csrfCookie)?.value;
+  const headerToken = request.headers.get("x-forgejudge-csrf");
+  if (!cookieToken || !headerToken) return false;
+  const cookieBuffer = Buffer.from(cookieToken);
+  const headerBuffer = Buffer.from(headerToken);
+  return (
+    cookieBuffer.length === headerBuffer.length &&
+    timingSafeEqual(cookieBuffer, headerBuffer)
+  );
+}
+
+export async function issueCsrfToken(): Promise<string> {
+  const token = randomBytes(32).toString("base64url");
+  (await cookies()).set(csrfCookie, token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/api/auth",
+    maxAge: 12 * 60 * 60,
+  });
+  return token;
 }
 
 export async function forwardAuth(
@@ -101,12 +128,12 @@ export async function writeSession(upstream: Response): Promise<Response> {
 
 export async function clearSession(): Promise<void> {
   const cookieStore = await cookies();
-  for (const name of [accessCookie, refreshCookie]) {
+  for (const name of [accessCookie, refreshCookie, csrfCookie]) {
     cookieStore.set(name, "", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      path: name === refreshCookie ? "/api/auth" : "/",
+      path: name === accessCookie ? "/" : "/api/auth",
       maxAge: 0,
     });
   }

@@ -7,7 +7,10 @@ import pytest
 from backend.api.routes.auth import require_bff_secret
 from backend.api.schemas.auth import RegistrationRequest, UserRead
 from backend.common.config import settings
-from backend.services.rate_limit import consume_auth_attempt
+from backend.services.rate_limit import (
+    RateLimitUnavailableError,
+    consume_auth_attempt,
+)
 from fastapi import HTTPException
 from pydantic import ValidationError
 
@@ -99,3 +102,17 @@ async def test_auth_rate_limit_hashes_source_and_enforces_threshold() -> None:
     assert "203.0.113.5" not in source_key
     assert "PERSON@example.test" not in identity_key
     assert redis.calls[0][4:] == (60, 60)
+
+
+@pytest.mark.asyncio
+async def test_auth_rate_limit_fails_closed_when_redis_is_unavailable() -> None:
+    class UnavailableRedis:
+        async def eval(self, *args: object) -> list[int]:
+            raise TimeoutError
+
+    with pytest.raises(RateLimitUnavailableError):
+        await consume_auth_attempt(
+            UnavailableRedis(),
+            "203.0.113.5",
+            identity="person@example.test",
+        )

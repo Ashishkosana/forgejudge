@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import secrets
 from collections.abc import AsyncIterator
@@ -80,8 +81,11 @@ async def test_expired_refresh_family_is_revoked(
     rotated = await service.refresh(auth_session, registered.refresh_token)
     current = await auth_session.scalar(
         select(RefreshSession)
-        .where(RefreshSession.user_id == registered.user.id)
-        .order_by(RefreshSession.created_at.desc())
+        .where(
+            RefreshSession.user_id == registered.user.id,
+            RefreshSession.token_hash
+            == hashlib.sha256(rotated.refresh_token.encode("utf-8")).hexdigest(),
+        )
     )
     assert current is not None
     current.family_expires_at = datetime.now(UTC) - timedelta(seconds=1)
@@ -90,8 +94,10 @@ async def test_expired_refresh_family_is_revoked(
     with pytest.raises(InvalidRefreshTokenError):
         await service.refresh(auth_session, rotated.refresh_token)
 
-    current = await auth_session.get(RefreshSession, current.id)
-    assert current is not None and current.revoked_at is not None
+    family = await auth_session.scalars(
+        select(RefreshSession).where(RefreshSession.family_id == current.family_id)
+    )
+    assert all(session.revoked_at is not None for session in family)
 
 
 @pytest.mark.asyncio

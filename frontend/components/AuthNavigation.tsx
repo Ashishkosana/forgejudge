@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { AuthUser } from "@/lib/auth-bff";
+import { csrfHeaders } from "@/lib/csrf-client";
 
 export default function AuthNavigation() {
   const router = useRouter();
@@ -22,7 +23,10 @@ export default function AuthNavigation() {
         if (active) setUnavailable(true);
         return;
       }
-      const refreshed = await fetch("/api/auth/session", { method: "POST" });
+      const refreshed = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: await csrfHeaders(),
+      });
       if (refreshed.ok && active) {
         const result = (await refreshed.json()) as { user: AuthUser };
         setUser(result.user);
@@ -37,7 +41,10 @@ export default function AuthNavigation() {
 
   async function logout() {
     try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: await csrfHeaders(),
+      });
       if (!response.ok) {
         setUnavailable(true);
         return;

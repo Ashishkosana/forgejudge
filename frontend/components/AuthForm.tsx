@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { csrfHeaders } from "@/lib/csrf-client";
+
 interface AuthFormProps {
   mode: "login" | "register";
 }
@@ -27,7 +29,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
     try {
       const response = await fetch(`/api/auth/${mode}`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await csrfHeaders()) },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
