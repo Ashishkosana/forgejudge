@@ -1,0 +1,7 @@
+flowchart LR
+    Browser --> Web[Next.js]
+    Web --> API[FastAPI]
+    API --> DB[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    Redis --> Worker[Worker process]
+    Worker -. Phase 2 .-> Sandbox[Ephemeral container runner]

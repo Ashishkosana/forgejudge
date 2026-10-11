@@ -1,0 +1,1 @@
+Static public assets are served from this directory.
