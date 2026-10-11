@@ -30,6 +30,7 @@ class RefreshSession(TimestampMixin, Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     family_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    family_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     replaced_by_id: Mapped[UUID | None] = mapped_column(
