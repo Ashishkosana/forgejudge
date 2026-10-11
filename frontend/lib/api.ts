@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 export interface SampleTestCase {
   id: string;
   position: number;
@@ -83,8 +85,15 @@ const apiBase = (process.env.API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, 
 export async function apiGet<T>(path: string): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${apiBase}${path}`, { cache: "no-store" });
-  } catch {
+    const headers = new Headers();
+    if (path.startsWith("/submissions")) {
+      const accessToken = (await cookies()).get("forgejudge_access")?.value;
+      if (!accessToken) throw new ApiError("Sign in to view submissions.", 401);
+      headers.set("Authorization", "Bearer " + accessToken);
+    }
+    response = await fetch(`${apiBase}${path}`, { cache: "no-store", headers });
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError("ForgeJudge API is unavailable.", 503);
   }
 

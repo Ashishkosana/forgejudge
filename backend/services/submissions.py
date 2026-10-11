@@ -22,6 +22,7 @@ class SubmissionsService:
         self,
         session: AsyncSession,
         *,
+        user_id: UUID,
         problem_id: UUID,
         source_code: str,
         language: str,
@@ -31,6 +32,7 @@ class SubmissionsService:
             raise ProblemNotFoundError
 
         submission = Submission(
+            user_id=user_id,
             problem_id=problem.id,
             language=language,
             source_code=source_code,
@@ -59,7 +61,8 @@ class SubmissionsService:
         offset: int,
         limit: int,
         problem_id: UUID | None,
+        user_id: UUID | None = None,
     ) -> tuple[list[Submission], int]:
         return await self.submissions.list_for_problem(
-            session, offset=offset, limit=limit, problem_id=problem_id
+            session, offset=offset, limit=limit, problem_id=problem_id, user_id=user_id
         )

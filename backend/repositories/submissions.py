@@ -27,8 +27,13 @@ class SubmissionsRepository:
         offset: int,
         limit: int,
         problem_id: UUID | None,
+        user_id: UUID | None = None,
     ) -> tuple[list[Submission], int]:
-        filters = [Submission.problem_id == problem_id] if problem_id else []
+        filters = []
+        if problem_id is not None:
+            filters.append(Submission.problem_id == problem_id)
+        if user_id is not None:
+            filters.append(Submission.user_id == user_id)
         query = (
             select(Submission)
             .where(*filters)

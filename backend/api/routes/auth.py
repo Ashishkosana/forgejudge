@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import ipaddress
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
@@ -37,7 +38,11 @@ async def require_bff_secret(
     provided_secret: Annotated[str | None, Header(alias="X-ForgeJudge-BFF-Secret")] = None,
 ) -> None:
     configured_secret = settings.bff_shared_secret
-    if len(configured_secret) < 32:
+    if (
+        len(configured_secret) < 32
+        or not settings.auth_private_key
+        or settings.auth_signing_key_id not in settings.auth_public_keys
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication service is not configured",
@@ -47,12 +52,19 @@ async def require_bff_secret(
 
 
 def _remote_host(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        candidate = forwarded_for.split(",", maxsplit=1)[0].strip()
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            pass
     return request.client.host if request.client is not None else "unknown"
 
 
-async def _enforce_rate_limit(redis: Redis, request: Request) -> None:
+async def _enforce_rate_limit(redis: Redis, request: Request, identity: str) -> None:
     try:
-        allowed = await consume_auth_attempt(redis, _remote_host(request))
+        allowed = await consume_auth_attempt(redis, _remote_host(request), identity=identity)
     except RateLimitUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -88,7 +100,7 @@ async def register(
     session: Annotated[AsyncSession, Depends(get_session)],
     redis: Annotated[Redis, Depends(get_redis)],
 ) -> AuthTokenResponse:
-    await _enforce_rate_limit(redis, request)
+    await _enforce_rate_limit(redis, request, payload.email)
     try:
         auth_session = await authentication_service.register(
             session,
@@ -117,7 +129,7 @@ async def login(
     session: Annotated[AsyncSession, Depends(get_session)],
     redis: Annotated[Redis, Depends(get_redis)],
 ) -> AuthTokenResponse:
-    await _enforce_rate_limit(redis, request)
+    await _enforce_rate_limit(redis, request, payload.email)
     try:
         auth_session = await authentication_service.login(
             session, email=payload.email, password=payload.password
@@ -166,7 +178,11 @@ async def logout(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_bff_secret)],
+)
 async def logout_all(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -176,5 +192,8 @@ async def logout_all(
 
 
 @router.get("/me", response_model=UserRead)
-async def current_user(user: Annotated[User, Depends(get_current_user)]) -> UserRead:
+async def current_user(
+    user: Annotated[User, Depends(get_current_user)], response: Response
+) -> UserRead:
+    response.headers["Cache-Control"] = "no-store"
     return UserRead.model_validate(user)

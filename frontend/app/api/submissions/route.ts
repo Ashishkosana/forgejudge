@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 const apiBase = (process.env.API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 
 export async function POST(request: Request): Promise<Response> {
@@ -14,9 +16,16 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
+    const accessToken = (await cookies()).get("forgejudge_access")?.value;
+    if (!accessToken) {
+      return Response.json({ detail: "Sign in before submitting a solution." }, { status: 401 });
+    }
     const upstream = await fetch(`${apiBase}/submissions`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify(payload),
       cache: "no-store",
     });

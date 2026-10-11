@@ -62,6 +62,9 @@ async def test_bff_secret_requires_constant_time_match(
 ) -> None:
     secret = "s" * 40
     monkeypatch.setattr(settings, "bff_shared_secret", secret)
+    monkeypatch.setattr(settings, "auth_private_key", "configured")
+    monkeypatch.setattr(settings, "auth_public_keys", {"local": "configured"})
+    monkeypatch.setattr(settings, "auth_signing_key_id", "local")
 
     await require_bff_secret(secret)
     with pytest.raises(HTTPException) as error:
@@ -74,14 +77,25 @@ async def test_auth_rate_limit_hashes_source_and_enforces_threshold() -> None:
     class FakeRedis:
         calls: list[tuple[object, ...]] = []
 
-        async def eval(self, *args: object) -> int:
+        async def eval(self, *args: object) -> list[int]:
             self.calls.append(args)
-            return 2
+            return [2, 2]
 
     redis = FakeRedis()
 
-    assert await consume_auth_attempt(redis, "203.0.113.5", limit=1) is False
-    key = str(redis.calls[0][2])
-    assert key.startswith("forgejudge:auth-rate:")
-    assert "203.0.113.5" not in key
-    assert redis.calls[0][3] == 60
+    assert (
+        await consume_auth_attempt(
+            redis,
+            "203.0.113.5",
+            identity="PERSON@example.test",
+            source_limit=1,
+        )
+        is False
+    )
+    source_key = str(redis.calls[0][2])
+    identity_key = str(redis.calls[0][3])
+    assert source_key.startswith("forgejudge:auth-rate:source:")
+    assert identity_key.startswith("forgejudge:auth-rate:identity:")
+    assert "203.0.113.5" not in source_key
+    assert "PERSON@example.test" not in identity_key
+    assert redis.calls[0][4:] == (60, 60)

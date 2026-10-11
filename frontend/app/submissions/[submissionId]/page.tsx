@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { ApiError, apiGet, type SubmissionDetail } from "@/lib/api";
 
@@ -14,6 +14,9 @@ export default async function SubmissionDetailPage({
     submission = await apiGet<SubmissionDetail>(`/submissions/${submissionId}`);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();
+    if (error instanceof ApiError && error.status === 401) {
+      redirect(`/login?next=%2Fsubmissions%2F${submissionId}`);
+    }
     throw error;
   }
 
