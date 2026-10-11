@@ -4,6 +4,7 @@ from backend.models.base import Base
 from backend.models.enums import Difficulty, SubmissionStatus, SubmissionVerdict, UserRole
 from backend.models.outbox_event import OutboxEvent
 from backend.models.problem import Problem
+from backend.models.refresh_session import RefreshSession
 from backend.models.submission import Submission
 from backend.models.submission_result import SubmissionResult
 from backend.models.test_case import TestCase
@@ -14,6 +15,7 @@ __all__ = [
     "Difficulty",
     "OutboxEvent",
     "Problem",
+    "RefreshSession",
     "Submission",
     "SubmissionResult",
     "SubmissionStatus",
