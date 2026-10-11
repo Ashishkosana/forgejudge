@@ -1,0 +1,144 @@
+name: forgejudge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-forgejudge}
+      POSTGRES_USER: ${POSTGRES_USER:-forgejudge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  judge-runtime:
+    image: ${FORGEJUDGE_JUDGE_PYTHON_IMAGE:-python:3.12-slim}
+    command: ["python", "--version"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    environment:
+      FORGEJUDGE_SERVICE_NAME: ${FORGEJUDGE_SERVICE_NAME:-ForgeJudge API}
+      FORGEJUDGE_ENVIRONMENT: ${FORGEJUDGE_ENVIRONMENT:-local}
+      FORGEJUDGE_LOG_LEVEL: ${FORGEJUDGE_LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://forgejudge:local-development-only@postgres:5432/forgejudge}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    command: ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://forgejudge:local-development-only@postgres:5432/forgejudge}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command: ["python", "-m", "scripts.seed"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://forgejudge:local-development-only@postgres:5432/forgejudge}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    environment:
+      FORGEJUDGE_ENVIRONMENT: ${FORGEJUDGE_ENVIRONMENT:-local}
+      FORGEJUDGE_LOG_LEVEL: ${FORGEJUDGE_LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://forgejudge:local-development-only@postgres:5432/forgejudge}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      FORGEJUDGE_JUDGE_PYTHON_IMAGE: ${FORGEJUDGE_JUDGE_PYTHON_IMAGE:-python:3.12-slim}
+      FORGEJUDGE_JUDGE_WORKSPACE_VOLUME: ${JUDGE_WORKSPACE_VOLUME:-forgejudge_judge_workspaces}
+      FORGEJUDGE_JUDGE_WORKSPACE_PATH: /judge-workspaces
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - judge_workspaces:/judge-workspaces
+    group_add:
+      - "${DOCKER_GID:-0}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      judge-runtime:
+        condition: service_completed_successfully
+    stop_grace_period: 10s
+
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+    command: ["sleep", "infinity"]
+    volumes:
+      - .:/workspaces/forgejudge
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+      target: development
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      API_URL: http://api:8000
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+
+volumes:
+  postgres_data:
+  redis_data:
+  judge_workspaces:
+    name: ${JUDGE_WORKSPACE_VOLUME:-forgejudge_judge_workspaces}
+  frontend_node_modules:
+  frontend_next:

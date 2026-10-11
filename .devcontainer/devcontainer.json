@@ -1,0 +1,37 @@
+{
+  "name": "ForgeJudge",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "devcontainer",
+  "runServices": ["devcontainer", "postgres", "redis", "api", "worker", "frontend"],
+  "workspaceFolder": "/workspaces/forgejudge",
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [3000, 8000, 5432, 6379],
+  "portsAttributes": {
+    "3000": { "label": "Next.js" },
+    "8000": { "label": "FastAPI", "onAutoForward": "notify" },
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "6379": { "label": "Redis", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "python -m pip install --upgrade pip && python -m pip install -e '.[dev]' && npm --prefix frontend ci",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "astral-sh.ruff",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "hashicorp.terraform"
+      ],
+      "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["backend/tests", "tests"],
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  }
+}

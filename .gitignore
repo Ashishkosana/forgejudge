@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
+
+# Node and Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
