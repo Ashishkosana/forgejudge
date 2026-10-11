@@ -1,12 +1,15 @@
 """API-to-Redis-to-worker integration coverage; requires Compose dependencies."""
 
+import os
 from uuid import UUID, uuid4
 
 import pytest
+from backend.api.dependencies import get_current_user
 from backend.api.main import app
+from backend.common.config import settings
 from backend.common.database import SessionFactory
 from backend.common.redis import create_redis_client
-from backend.models import OutboxEvent, Problem, Submission
+from backend.models import OutboxEvent, Problem, Submission, User
 from backend.models import TestCase as CaseModel
 from backend.models.enums import SubmissionVerdict
 from backend.models.judging import ExecutionResult
@@ -35,11 +38,33 @@ class IntegrationRunner:
 async def test_problem_submission_outbox_and_worker_flow(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    database_url = os.environ.get("FORGEJUDGE_TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("Set FORGEJUDGE_TEST_DATABASE_URL to run PostgreSQL integration tests")
+    if database_url != settings.database_url:
+        pytest.skip(
+            "Set DATABASE_URL to FORGEJUDGE_TEST_DATABASE_URL for PostgreSQL integration tests"
+        )
+
     problem_slug = f"integration-{uuid4().hex}"
     stream = f"forgejudge:test:{uuid4().hex}"
     group = f"workers:{uuid4().hex}"
     redis = create_redis_client()
     submission_id: UUID | None = None
+    user_id: UUID | None = None
+
+    async with SessionFactory() as session:
+        user = User(
+            email=f"integration-{uuid4().hex}@example.test",
+            display_name="Integration User",
+            role="user",
+        )
+        session.add(user)
+        await session.flush()
+        user_id = user.id
+        await session.commit()
+    monkeypatch.setitem(app.dependency_overrides, get_current_user, lambda: user)
+
     async def process_with_test_runner(submission_id: UUID) -> bool:
         return await process_submission(submission_id, runner=IntegrationRunner())
 
@@ -151,5 +176,7 @@ async def test_problem_submission_outbox_and_worker_flow(
                 await session.execute(delete(Submission).where(Submission.id == submission_id))
             await session.execute(delete(CaseModel).where(CaseModel.problem_id == problem_id))
             await session.execute(delete(Problem).where(Problem.id == problem_id))
+            if user_id is not None:
+                await session.execute(delete(User).where(User.id == user_id))
             await session.commit()
         await redis.aclose()

@@ -1,7 +1,10 @@
 """Environment-backed settings shared by backend processes."""
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import json
+from typing import Annotated
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -22,6 +25,24 @@ class Settings(BaseSettings):
     judge_python_image: str = "python:3.12-slim"
     judge_workspace_volume: str = "forgejudge_judge_workspaces"
     judge_workspace_path: str = "/judge-workspaces"
+    auth_private_key: str = ""
+    auth_public_keys: Annotated[dict[str, str], NoDecode] = Field(default_factory=dict)
+    auth_signing_key_id: str = "local"
+    auth_issuer: str = "forgejudge"
+    auth_audience: str = "forgejudge-api"
+    auth_access_token_ttl_seconds: int = 600
+    auth_refresh_idle_days: int = 7
+    auth_refresh_absolute_days: int = 30
+    bff_shared_secret: str = ""
+
+    @field_validator("auth_public_keys", mode="before")
+    @classmethod
+    def parse_empty_public_key_map(cls, value: object) -> object:
+        if value == "" or value is None:
+            return {}
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
 
     model_config = SettingsConfigDict(env_prefix="FORGEJUDGE_", extra="ignore")
 

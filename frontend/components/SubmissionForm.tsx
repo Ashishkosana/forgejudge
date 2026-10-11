@@ -29,6 +29,10 @@ export default function SubmissionForm({ problemId }: SubmissionFormProps) {
         body: JSON.stringify({ problem_id: problemId, language: "python", source_code: sourceCode }),
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          router.push("/login");
+          return;
+        }
         const result = (await response.json()) as { detail?: string | { message?: string } };
         const detail = result.detail;
         throw new Error(

@@ -45,6 +45,10 @@ services:
       FORGEJUDGE_LOG_LEVEL: ${FORGEJUDGE_LOG_LEVEL:-INFO}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://forgejudge:local-development-only@postgres:5432/forgejudge}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      FORGEJUDGE_AUTH_PRIVATE_KEY: ${FORGEJUDGE_AUTH_PRIVATE_KEY:-}
+      FORGEJUDGE_AUTH_PUBLIC_KEYS: ${FORGEJUDGE_AUTH_PUBLIC_KEYS:-}
+      FORGEJUDGE_AUTH_SIGNING_KEY_ID: ${FORGEJUDGE_AUTH_SIGNING_KEY_ID:-local}
+      FORGEJUDGE_BFF_SHARED_SECRET: ${FORGEJUDGE_BFF_SHARED_SECRET:-}
     command: ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     ports:
       - "127.0.0.1:8000:8000"
@@ -127,6 +131,7 @@ services:
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       API_URL: http://api:8000
+      FORGEJUDGE_BFF_SHARED_SECRET: ${FORGEJUDGE_BFF_SHARED_SECRET:-}
     command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
     ports:
       - "127.0.0.1:3000:3000"

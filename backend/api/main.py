@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException, status
 from sqlalchemy import text
 
 from backend.api.dependencies import redis_client
+from backend.api.routes.admin import router as admin_router
+from backend.api.routes.auth import router as auth_router
 from backend.api.routes.problems import router as problems_router
 from backend.api.routes.submissions import router as submissions_router
 from backend.common.config import settings
@@ -27,6 +29,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(problems_router)
+app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(submissions_router)
 
 

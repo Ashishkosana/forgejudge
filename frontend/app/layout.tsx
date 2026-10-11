@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import AuthNavigation from "@/components/AuthNavigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
             <Link href="/problems">Problems</Link>
             <Link href="/submissions">Submissions</Link>
           </nav>
+          <AuthNavigation />
           <div className="phase-label">JUDGE / 01</div>
         </header>
         {children}

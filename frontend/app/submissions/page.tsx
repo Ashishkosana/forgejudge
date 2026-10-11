@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { apiGet, type SubmissionList } from "@/lib/api";
+import { ApiError, apiGet, type SubmissionList } from "@/lib/api";
 
 export const metadata = { title: "Submissions | ForgeJudge" };
 
@@ -9,7 +10,8 @@ export default async function SubmissionsPage() {
   let unavailable = false;
   try {
     submissions = await apiGet<SubmissionList>("/submissions?limit=100");
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) redirect("/login?next=%2Fsubmissions");
     unavailable = true;
   }
 

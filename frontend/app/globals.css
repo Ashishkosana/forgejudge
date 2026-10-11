@@ -64,6 +64,36 @@ a {
   color: #496c28;
 }
 
+.auth-navigation {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-navigation a {
+  text-decoration: none;
+}
+
+.auth-navigation a:hover,
+.nav-button:hover {
+  color: #496c28;
+}
+
+.auth-greeting {
+  color: var(--ink);
+}
+
+.nav-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
 .phase-label {
   color: var(--muted);
   font-family: monospace;
@@ -406,6 +436,46 @@ h1 {
 }
 
 .submit-form textarea:focus {
+  outline: 2px solid #789957;
+  outline-offset: 2px;
+}
+
+.auth-card {
+  width: min(480px, 100%);
+  margin: 56px auto;
+  padding: 32px;
+  border: 1px solid var(--line);
+  background: #eef0e9;
+}
+
+.auth-card .page-title {
+  margin-bottom: 28px;
+  font-size: 38px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-form input {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.auth-form input:focus {
   outline: 2px solid #789957;
   outline-offset: 2px;
 }

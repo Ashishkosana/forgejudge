@@ -68,6 +68,48 @@ flowchart LR
 - Production Azure resources and network boundaries are deferred to the
   corresponding infrastructure phases.
 
+## Phase 3 authentication and authorization
+
+The browser authenticates only with same-origin Next.js route handlers. The
+BFF validates the request origin and a double-submit CSRF proof, forwards
+credentials and a shared secret to FastAPI, and stores access and refresh
+tokens in HttpOnly cookies. Browser code receives only a sanitized user
+representation and never receives either authentication token.
+
+FastAPI signs 10-minute RS256 access JWTs. Each protected request validates the
+signature, key ID, issuer, audience, expiry, token purpose, and current active
+user record; authorization reads the current database role rather than
+trusting a role claim. Refresh credentials are random opaque values, stored
+only as SHA-256 hashes. Rotation occurs transactionally in PostgreSQL, with
+7-day idle and 30-day family absolute expiries. Reuse of a consumed token
+revokes every active session in that family. Redis holds short-lived
+source-and-account rate-limit counters only; it is not the session authority.
+
+New submissions take their owner ID from the verified principal. Submission
+lists are scoped to that owner, while administrators can view all records;
+non-owner detail requests return `404`. Public problem browsing remains
+available, and historical anonymous submissions are preserved.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant BFF as Next.js BFF
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Redis
+    Browser->>BFF: Same-origin login + CSRF proof
+    BFF->>API: Credentials + BFF shared secret
+    API->>Redis: Increment source/account counters
+    API->>DB: Verify account; persist refresh-session hash
+    API-->>BFF: Access JWT + opaque refresh token
+    BFF-->>Browser: HttpOnly cookies + sanitized user
+    Browser->>BFF: Protected request + cookies
+    BFF->>API: Authenticated API request
+    API->>DB: Load active user and current role
+    API-->>BFF: Authorized resource response
+    BFF-->>Browser: Resource response
+```
+
 ## Repository ownership
 
 HTTP routing and transport concerns live in `backend/api`; workflows belong in
